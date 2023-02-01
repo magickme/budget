@@ -20,12 +20,18 @@ app.post('/envelope', (req, res) => {
     console.log(envelope);
     envelopes.push(envelope);
 
-    res.send('Envelope is added to the budget.');
+    // Only send the response once
+    if (!res.headersSent) {
+        res.send('Envelope is added to the budget.');
+    }
 });
 
 app.get('/envelopes', (req, res) => {
-    res.json(envelopes);
-
+    // Only send the response once
+    if (!res.headersSent) {
+        res.json(envelopes);
+    }
+    
     res.status(404).send('Envelopes not found');
 })
 
@@ -34,7 +40,10 @@ app.get('/envelopes/:id', (req, res) => {
 
     for (let envelope of envelopes) {
         if (envelope.id === id) {
-            res.json(envelope);
+            // Only send the response once
+            if (!res.headersSent) {
+                res.json(envelope);
+            }
             return;
         }
     }
@@ -52,7 +61,10 @@ app.delete('/envelopes/:id', (req, res) => {
         return false;
     });
 
-    res.send('Envelope is deleted!');
+    // Only send the response once
+    if (!res.headersSent) {
+        res.send('Envelope is deleted!');
+    }
 
 });
 
@@ -64,7 +76,10 @@ app.post('/envelopes/:id', (req, res) => {
         let envelope = envelopes[i]
         if (envelope.id === id) {
             envelopes[i] = {...envelope, ...newEnvelope};
-            res.send('Envelope is edited!');
+            // Only send the response once
+            if (!res.headersSent) {
+                res.send('Envelope is edited!');
+            }
             return;
         }
     }
@@ -73,26 +88,36 @@ app.post('/envelopes/:id', (req, res) => {
 });
 
 app.post('/envelopes/transfer/:from/:to', (req, res) => {
-    const from = req.params.from;
-    const to = req.params.to;
-    const value = req.body.value;
+    const fromId = req.params.from;
+    const toId = req.params.to;
+    let fromIndex = -1;
+    let toIndex = -1;
 
-    let fromEnvelope;
-    let toEnvelope;
-
-    for (let envelope of envelopes) {
-        if (envelope.id === from) {
-            fromEnvelope = envelope;
-        }
-        if (envelope.id === to) {
-            toEnvelope = envelope;
+    // Find envelope indexes
+    for (let i = 0; i < envelopes.length; i++) {
+        let envelope = envelopes[i]
+        if (envelope.id === fromId) {
+            fromIndex = i;
+        } else if (envelope.id === toId) {
+            toIndex = i;
         }
     }
 
-    fromEnvelope.balance = fromEnvelope.balance - value;
-    toEnvelope.balance = toEnvelope.balance + value;
+    // Transfer value
+    if (fromIndex > -1 && toIndex > -1) {
+        const fromEnvelope = envelopes[fromIndex];
+        const toEnvelope = envelopes[toIndex];
+        const newValue = fromEnvelope.title + toEnvelope.title;
 
-    res.send('Envelopes are successfully updated!');
+        envelopes[fromIndex] = { ...fromEnvelope, title: '' };
+        envelopes[toIndex] = { ...toEnvelope, title: newValue };
+        // Only send the response once
+        if (!res.headersSent) {
+            res.send('Value is transferred!');
+        }
+    } else {
+        res.status(404).send('Envelopes not found');
+    }
 });
 
 app.listen(port, () => console.log(`Budget Envelope API listening on port ${port}!`));
